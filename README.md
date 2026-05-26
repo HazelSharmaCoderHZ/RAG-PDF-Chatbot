@@ -2,6 +2,7 @@
 
 An AI-powered conversational chatbot that allows users to upload multiple PDFs and ask questions using Retrieval-Augmented Generation (RAG).
 
+
 🛠️ Tech Stack
 Category -	Tools / Libraries
 
@@ -22,6 +23,7 @@ Numerical Processing -	NumPy
 Environment Variables -	python-dotenv
 
 
+
 Features
 
 ✅ Upload multiple PDFs
@@ -37,47 +39,66 @@ Features
 ✅ Cached embeddings and processing for better performance
 
 
+
 🧠 What I Learned From This Project
 This project helped me understand the complete workflow of a real-world RAG (Retrieval-Augmented Generation) system.
 
 
+
 Core AI Concepts Learned
+
 🔹 Embeddings
+
 Converted text chunks into vector representations
 Learned semantic similarity search
 Understood how meaning is represented mathematically
+
 🔹 Chunking
+
 Learned why large documents must be split
 Experimented with:
 chunk size
 overlap
 retrieval granularity
+
 🔹 Vector Databases
+
 Used FAISS for semantic retrieval
 Learned nearest-neighbor vector search
 Understood similarity-based retrieval
+
 🔹 Retrieval-Augmented Generation (RAG)
+
 Combined:
 retrieval
 embeddings
 LLM prompting
 Learned how modern AI assistants access external knowledge
+
 🔹 Prompt Engineering
+
 Built prompts using:
 retrieved context
 conversation history
 user query
+
 🔹 Conversational Memory
+
 Implemented session-based memory
 Enabled follow-up conversational understanding
+
 🔹 AI System Optimization
+
 Used Streamlit caching
 Reduced recomputation overhead
 Improved performance for large PDFs
+
 🔹 Explainable AI
+
 Displayed retrieved chunks
 Added similarity scores
 Improved transparency of AI answers
+
 
 
 🧩 Project Architecture: 
