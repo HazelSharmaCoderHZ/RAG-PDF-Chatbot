@@ -72,29 +72,30 @@ Added similarity scores
 Improved transparency of AI answers
 
 
-🧩 Project Architecture
+🧩 Project Architecture: 
 PDF Upload
-    ↓
+    ->
 Text Extraction
-    ↓
+    ->
 Chunking
-    ↓
+    ->
 Embeddings Generation
-    ↓
+    ->
 FAISS Vector Storage
-    ↓
+    ->
 Semantic Retrieval
-    ↓
+    ->
 Context Injection
-    ↓
+    ->
 LLM Response Generation
-    ↓
+    ->
 Streaming Conversational Output
-⚙️ Configurable RAG Parameters
 
 
 
-📚 How Retrieval Works
+
+📚 How Retrieval Works:
+
 PDFs are uploaded
 Text is extracted
 Text is split into chunks
