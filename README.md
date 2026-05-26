@@ -96,12 +96,4 @@ Streaming Conversational Output
 
 📚 How Retrieval Works:
 
-PDFs are uploaded
-Text is extracted
-Text is split into chunks
-Chunks are converted into embeddings
-Embeddings are stored in FAISS
-User query is embedded
-Similar chunks are retrieved
-Retrieved context is sent to the LLM
-AI generates grounded responses
+PDFs are uploaded -> Text is extracted -> Text is split into chunks -> Chunks are converted into embeddings -> Embeddings are stored in FAISS -> User query is embedded -> Similar chunks are retrieved -> Retrieved context is sent to the LLM -> AI generates grounded responses
