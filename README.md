@@ -3,15 +3,23 @@
 An AI-powered conversational chatbot that allows users to upload multiple PDFs and ask questions using Retrieval-Augmented Generation (RAG).
 
 🛠️ Tech Stack
-Category	Tools / Libraries
-Frontend	Streamlit
-Backend	Python
-Embedding Model	sentence-transformers
-Vector Database	FAISS
-LLM API	Groq API
-PDF Processing	pypdf
-Numerical Processing	NumPy
-Environment Variables	python-dotenv
+Category -	Tools / Libraries
+
+Frontend -	Streamlit
+
+Backend	-  Python
+
+Embedding - Model	sentence-transformers
+
+Vector Database - 	FAISS
+
+LLM API -	Groq API
+
+PDF Processing -	pypdf
+
+Numerical Processing -	NumPy
+
+Environment Variables -	python-dotenv
 
 
 Features
