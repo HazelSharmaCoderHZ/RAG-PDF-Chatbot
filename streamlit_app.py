@@ -22,545 +22,549 @@ try:
 except LookupError:
     nltk.download('punkt_tab')
 
-st.secrets["GROQ_API_KEY"]
-st.secrets["MONGO_URI"]
+load_dotenv()
 
-mongo_client = MongoClient(
-    st.secrets["MONGO_URI"]
-)
+def get_secret(key):
+    val = os.getenv(key, "")
+    if not val:
+        try:
+            val = st.secrets.get(key, "")
+        except Exception:
+            val = ""
+    return val
 
+groq_api_key = get_secret("GROQ_API_KEY")
+mongo_uri = get_secret("MONGO_URI")
+
+mongo_client = MongoClient(mongo_uri)
 db = mongo_client["rag_chatbot"]
 users_collection = db["users"]
 chat_collection = db["chat_history"]
 conversation_collection = db["conversations"]
 
 client = OpenAI(
-    api_key=st.secrets["GROQ_API_KEY"],
+    api_key=groq_api_key,
     base_url="https://api.groq.com/openai/v1"
 )
 
 st.set_page_config(
-    page_title="PDF RAG Chatbot",
-    page_icon="📘",
+    page_title="PDF RAG Assistant",
+    page_icon="✦",
     layout="wide"
 )
 
 st.markdown("""
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
 
-/* ── ROOT TOKENS ── */
 :root {
-    --bg-base:        #080C14;
-    --bg-surface:     #0D1220;
-    --bg-elevated:    #121929;
-    --bg-glass:       rgba(18, 25, 41, 0.72);
-    --border:         rgba(255,255,255,0.06);
-    --border-accent:  rgba(245, 185, 66, 0.35);
-    --accent:         #F5B942;
-    --accent-dim:     rgba(245, 185, 66, 0.12);
-    --accent-glow:    rgba(245, 185, 66, 0.25);
-    --text-primary:   #EEF0F6;
-    --text-secondary: #7A8399;
-    --text-muted:     #3D4557;
-    --user-bubble:    #14213B;
-    --ai-bubble:      #0E1A2D;
-    --success:        #2DCA8C;
-    --danger:         #E05C6B;
-    --font-display:   'Syne', sans-serif;
-    --font-mono:      'DM Mono', monospace;
+    --cream:         #FAF7F2;
+    --cream-deep:    #F2EDE4;
+    --cream-border:  #E8DFD0;
+    --parchment:     #EDE4D6;
+    --brown-light:   #C4956A;
+    --brown:         #A8703A;
+    --brown-dark:    #7A4F28;
+    --brown-deeper:  #4E2F10;
+    --sienna:        #C4673A;
+    --text-dark:     #2C1A0E;
+    --text-mid:      #6B4C33;
+    --text-soft:     #9C7B5E;
+    --text-faint:    #C4AA90;
+    --white:         #FFFFFF;
+    --shadow-warm:   rgba(122, 79, 40, 0.12);
+    --shadow-deep:   rgba(44, 26, 14, 0.18);
+    --font-serif:    'Cormorant Garamond', Georgia, serif;
+    --font-sans:     'Jost', sans-serif;
 }
 
-/* ── GLOBAL RESET ── */
 html, body, .stApp {
-    background-color: var(--bg-base) !important;
-    font-family: var(--font-mono) !important;
-    color: var(--text-primary) !important;
+    background-color: var(--cream) !important;
+    font-family: var(--font-sans) !important;
+    color: var(--text-dark) !important;
 }
 
 .main .block-container {
-    padding: 2rem 2.5rem 4rem !important;
-    max-width: 1100px;
+    padding: 0 2.5rem 5rem !important;
+    max-width: 980px !important;
 }
 
-/* ── HERO HEADER ── */
 .rag-hero {
-    padding: 2.5rem 0 1.5rem;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 2rem;
+    padding: 3rem 0 2rem;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--cream-border);
     position: relative;
-    overflow: hidden;
 }
 
-.rag-hero::before {
-    content: '';
-    position: absolute;
-    top: -60px; left: -40px;
-    width: 340px; height: 200px;
-    background: radial-gradient(ellipse, rgba(245,185,66,0.08) 0%, transparent 70%);
-    pointer-events: none;
-}
-
-.rag-hero-label {
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
+.rag-hero-eyebrow {
+    font-family: var(--font-sans);
+    font-size: 0.6rem;
     font-weight: 500;
-    letter-spacing: 0.22em;
-    color: var(--accent);
+    letter-spacing: 0.3em;
     text-transform: uppercase;
-    margin-bottom: 0.6rem;
+    color: var(--brown-light);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.rag-hero-eyebrow::before {
+    content: '';
+    width: 24px;
+    height: 1px;
+    background: var(--brown-light);
 }
 
 .rag-hero-title {
-    font-family: var(--font-display);
-    font-size: clamp(2rem, 4vw, 3.2rem);
-    font-weight: 800;
+    font-family: var(--font-serif);
+    font-size: clamp(2.4rem, 5vw, 4rem);
+    font-weight: 300;
+    font-style: italic;
     line-height: 1.1;
-    color: var(--text-primary);
-    letter-spacing: -0.02em;
-    margin: 0 0 0.6rem;
+    color: var(--text-dark);
+    letter-spacing: -0.01em;
+    margin: 0 0 0.75rem;
 }
 
-.rag-hero-title span {
-    color: var(--accent);
+.rag-hero-title strong {
+    font-weight: 600;
+    font-style: normal;
+    color: var(--brown-dark);
 }
 
 .rag-hero-sub {
-    font-family: var(--font-mono);
-    font-size: 0.82rem;
-    color: var(--text-secondary);
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
     font-weight: 300;
-    letter-spacing: 0.02em;
-    margin: 0;
+    color: var(--text-soft);
+    letter-spacing: 0.04em;
+    line-height: 1.8;
 }
 
-/* ── SECTION LABEL ── */
-.section-label {
-    font-family: var(--font-mono);
-    font-size: 0.6rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: 0.6rem;
+.section-rule {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
 }
 
-.section-label::after {
-    content: '';
+.section-rule-label {
+    font-family: var(--font-sans);
+    font-size: 0.58rem;
+    font-weight: 500;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    white-space: nowrap;
+}
+
+.section-rule-line {
     flex: 1;
     height: 1px;
-    background: var(--border);
+    background: var(--cream-border);
 }
 
-/* ── METRICS STRIP ── */
-.metric-strip {
-    display: flex;
+.metric-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 1px;
-    margin: 1.2rem 0 1.8rem;
-    border: 1px solid var(--border);
-    border-radius: 10px;
+    background: var(--cream-border);
+    border: 1px solid var(--cream-border);
+    border-radius: 12px;
     overflow: hidden;
-    background: var(--border);
+    margin: 1.5rem 0 2rem;
 }
 
-.metric-cell {
-    flex: 1;
-    background: var(--bg-elevated);
-    padding: 0.85rem 1.2rem;
+.metric-tile {
+    background: var(--white);
+    padding: 1rem 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 0.25rem;
 }
 
-.metric-val {
-    font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--accent);
+.metric-tile:first-child { border-radius: 11px 0 0 11px; }
+.metric-tile:last-child  { border-radius: 0 11px 11px 0; }
+
+.metric-num {
+    font-family: var(--font-serif);
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--brown-dark);
     line-height: 1;
 }
 
-.metric-key {
-    font-family: var(--font-mono);
-    font-size: 0.6rem;
-    letter-spacing: 0.14em;
+.metric-lbl {
+    font-family: var(--font-sans);
+    font-size: 0.58rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: var(--text-faint);
 }
 
-/* ── UPLOAD ZONE ── */
+html, body, .stApp {
+    background-color: var(--cream) !important;
+}
+
 div.stFileUploader {
-    background: var(--bg-elevated) !important;
-    border: 1.5px dashed var(--border-accent) !important;
-    border-radius: 12px !important;
-    padding: 1.2rem !important;
-    transition: border-color 0.2s, background 0.2s;
+    background: var(--white) !important;
+    border: 1.5px dashed var(--cream-border) !important;
+    border-radius: 14px !important;
+    padding: 1.5rem !important;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 12px var(--shadow-warm) !important;
 }
 
 div.stFileUploader:hover {
-    border-color: var(--accent) !important;
-    background: var(--accent-dim) !important;
+    border-color: var(--brown-light) !important;
+    box-shadow: 0 4px 20px var(--shadow-deep) !important;
 }
 
-div.stFileUploader label {
-    font-family: var(--font-mono) !important;
-    color: var(--text-secondary) !important;
+div.stFileUploader label p {
+    font-family: var(--font-sans) !important;
+    color: var(--text-soft) !important;
     font-size: 0.82rem !important;
+    font-weight: 300 !important;
 }
 
-/* ── CHAT MESSAGES ── */
+div.stFileUploader [data-testid="stFileUploaderDropzoneInstructions"] {
+    color: var(--text-soft) !important;
+}
+
 .stChatMessage {
     background: transparent !important;
     border: none !important;
-    padding: 0 !important;
-    margin-bottom: 0.5rem !important;
+    padding: 0.25rem 0 !important;
+    margin-bottom: 0.25rem !important;
 }
 
 [data-testid="stChatMessageContent"] {
-    font-family: var(--font-mono) !important;
+    font-family: var(--font-sans) !important;
     font-size: 0.875rem !important;
-    line-height: 1.7 !important;
-    color: var(--text-primary) !important;
+    line-height: 1.75 !important;
+    font-weight: 300 !important;
+    color: var(--text-dark) !important;
 }
 
-/* User bubble */
 [data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageContent"] {
-    background: var(--user-bubble) !important;
-    border: 1px solid rgba(245, 185, 66, 0.15) !important;
-    border-radius: 12px 4px 12px 12px !important;
-    padding: 0.85rem 1.1rem !important;
+    background: var(--parchment) !important;
+    border: 1px solid var(--cream-border) !important;
+    border-radius: 16px 4px 16px 16px !important;
+    padding: 0.9rem 1.2rem !important;
+    box-shadow: 0 1px 6px var(--shadow-warm) !important;
 }
 
-/* AI bubble */
 [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] {
-    background: var(--ai-bubble) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 4px 12px 12px 12px !important;
-    padding: 0.85rem 1.1rem !important;
+    background: var(--white) !important;
+    border: 1px solid var(--cream-border) !important;
+    border-radius: 4px 16px 16px 16px !important;
+    padding: 0.9rem 1.2rem !important;
+    box-shadow: 0 1px 6px var(--shadow-warm) !important;
 }
 
-/* Avatar */
 [data-testid="stChatMessageAvatar"] {
-    background: var(--bg-elevated) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 8px !important;
+    background: var(--cream-deep) !important;
+    border: 1px solid var(--cream-border) !important;
+    border-radius: 10px !important;
 }
 
-/* ── CHAT INPUT ── */
 [data-testid="stChatInput"] {
-    background: var(--bg-elevated) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 12px !important;
-    transition: border-color 0.2s;
+    background: var(--white) !important;
+    border: 1px solid var(--cream-border) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 2px 12px var(--shadow-warm) !important;
+    transition: all 0.2s ease;
 }
 
 [data-testid="stChatInput"]:focus-within {
-    border-color: var(--accent) !important;
-    box-shadow: 0 0 0 3px var(--accent-glow) !important;
+    border-color: var(--brown-light) !important;
+    box-shadow: 0 4px 20px var(--shadow-deep) !important;
 }
 
 [data-testid="stChatInput"] textarea {
-    font-family: var(--font-mono) !important;
+    font-family: var(--font-sans) !important;
     font-size: 0.875rem !important;
-    color: var(--text-primary) !important;
+    font-weight: 300 !important;
+    color: var(--text-dark) !important;
     background: transparent !important;
 }
 
-/* ── BUTTONS ── */
+[data-testid="stChatInput"] textarea::placeholder {
+    color: var(--text-faint) !important;
+}
+
 div.stButton > button {
-    font-family: var(--font-mono) !important;
-    font-size: 0.75rem !important;
+    font-family: var(--font-sans) !important;
+    font-size: 0.72rem !important;
     font-weight: 500 !important;
-    letter-spacing: 0.06em !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
     border-radius: 8px !important;
     width: 100% !important;
-    padding: 0.55rem 1rem !important;
-    background: var(--bg-elevated) !important;
-    color: var(--text-secondary) !important;
-    border: 1px solid var(--border) !important;
+    padding: 0.6rem 1rem !important;
+    background: var(--white) !important;
+    color: var(--text-mid) !important;
+    border: 1px solid var(--cream-border) !important;
     transition: all 0.18s ease !important;
+    box-shadow: 0 1px 4px var(--shadow-warm) !important;
 }
 
 div.stButton > button:hover {
-    background: var(--accent-dim) !important;
-    color: var(--accent) !important;
-    border-color: var(--border-accent) !important;
+    background: var(--brown-dark) !important;
+    color: var(--cream) !important;
+    border-color: var(--brown-dark) !important;
+    box-shadow: 0 3px 12px var(--shadow-deep) !important;
 }
 
 div.stButton > button:active {
     transform: scale(0.98) !important;
 }
 
-/* ── SIDEBAR ── */
 section[data-testid="stSidebar"] {
-    background: var(--bg-surface) !important;
-    border-right: 1px solid var(--border) !important;
+    background: var(--cream-deep) !important;
+    border-right: 1px solid var(--cream-border) !important;
+}
+
+section[data-testid="stSidebar"] > div {
     padding-top: 1.5rem !important;
 }
 
-section[data-testid="stSidebar"] * {
-    font-family: var(--font-mono) !important;
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] button {
+    font-family: var(--font-sans) !important;
 }
 
-section[data-testid="stSidebar"] h1,
-section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3 {
-    font-family: var(--font-display) !important;
-    color: var(--text-primary) !important;
-    font-size: 0.9rem !important;
-    letter-spacing: 0.02em !important;
-}
-
-/* Sidebar logo block */
 .sidebar-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.2rem 0 1.2rem;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 1.2rem;
+    padding: 0.5rem 0 1.5rem;
+    border-bottom: 1px solid var(--cream-border);
+    margin-bottom: 1.5rem;
 }
 
-.sidebar-brand-icon {
-    width: 32px; height: 32px;
-    background: var(--accent-dim);
-    border: 1px solid var(--border-accent);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1rem;
+.sidebar-brand-title {
+    font-family: var(--font-serif) !important;
+    font-size: 1.4rem;
+    font-weight: 600;
+    font-style: italic;
+    color: var(--brown-deeper);
+    line-height: 1.2;
+    margin-bottom: 0.2rem;
 }
 
-.sidebar-brand-name {
-    font-family: var(--font-display) !important;
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: -0.01em;
-}
-
-.sidebar-brand-ver {
+.sidebar-brand-sub {
     font-size: 0.6rem;
-    color: var(--accent);
-    letter-spacing: 0.1em;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-faint);
 }
 
-/* Sidebar inputs */
-section[data-testid="stSidebar"] .stTextInput > div > div > input,
-section[data-testid="stSidebar"] .stSelectbox > div > div {
-    background: var(--bg-elevated) !important;
-    border: 1px solid var(--border) !important;
+section[data-testid="stSidebar"] label {
+    font-size: 0.6rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.18em !important;
+    text-transform: uppercase !important;
+    color: var(--text-faint) !important;
+}
+
+section[data-testid="stSidebar"] .stTextInput > div > div > input {
+    background: var(--white) !important;
+    border: 1px solid var(--cream-border) !important;
     border-radius: 8px !important;
-    color: var(--text-primary) !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.8rem !important;
+    color: var(--text-dark) !important;
+    font-family: var(--font-sans) !important;
+    font-size: 0.82rem !important;
+    font-weight: 300 !important;
+    box-shadow: 0 1px 4px var(--shadow-warm) !important;
     transition: border-color 0.18s;
 }
 
 section[data-testid="stSidebar"] .stTextInput > div > div > input:focus {
-    border-color: var(--accent) !important;
-    box-shadow: 0 0 0 2px var(--accent-glow) !important;
+    border-color: var(--brown-light) !important;
+    outline: none !important;
 }
 
-/* Sidebar labels */
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] .stSelectbox label {
-    font-size: 0.65rem !important;
-    letter-spacing: 0.12em !important;
-    text-transform: uppercase !important;
-    color: var(--text-muted) !important;
+section[data-testid="stSidebar"] .stSelectbox > div > div {
+    background: var(--white) !important;
+    border: 1px solid var(--cream-border) !important;
+    border-radius: 8px !important;
+    color: var(--text-dark) !important;
+    font-size: 0.82rem !important;
+    box-shadow: 0 1px 4px var(--shadow-warm) !important;
 }
 
-/* Sliders */
 .stSlider [data-baseweb="slider"] [role="slider"] {
-    background: var(--accent) !important;
-    border: 2px solid var(--bg-base) !important;
-    box-shadow: 0 0 10px var(--accent-glow) !important;
-}
-
-.stSlider [data-baseweb="slider"] [data-testid="stSliderTrack"] > div:first-child {
-    background: var(--bg-elevated) !important;
+    background: var(--brown) !important;
+    border: 2px solid var(--cream) !important;
+    box-shadow: 0 0 0 3px var(--brown-light) !important;
 }
 
 .stSlider [data-baseweb="slider"] [data-testid="stSliderTrack"] > div:last-child {
-    background: var(--accent) !important;
+    background: var(--brown-light) !important;
 }
 
-/* ── ALERTS & STATUS ── */
-.stSuccess {
-    background: rgba(45, 202, 140, 0.08) !important;
-    border: 1px solid rgba(45, 202, 140, 0.25) !important;
-    border-radius: 8px !important;
-    color: var(--success) !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.78rem !important;
+.stSlider [data-baseweb="slider"] [data-testid="stSliderTrack"] > div:first-child {
+    background: var(--cream-border) !important;
 }
 
-.stError {
-    background: rgba(224, 92, 107, 0.08) !important;
-    border: 1px solid rgba(224, 92, 107, 0.25) !important;
-    border-radius: 8px !important;
-    color: var(--danger) !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.78rem !important;
+.stSlider p {
+    color: var(--text-mid) !important;
+    font-size: 0.8rem !important;
 }
 
-.stWarning {
-    background: rgba(245, 185, 66, 0.06) !important;
-    border: 1px solid var(--border-accent) !important;
-    border-radius: 8px !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.78rem !important;
+div[data-testid="stAlert"] {
+    border-radius: 10px !important;
+    font-family: var(--font-sans) !important;
+    font-size: 0.8rem !important;
+    font-weight: 300 !important;
 }
 
-/* ── EXPANDER (Retrieved Context) ── */
+div[data-testid="stAlert"][data-baseweb="notification"] {
+    background: rgba(168, 112, 58, 0.06) !important;
+    border: 1px solid rgba(168, 112, 58, 0.2) !important;
+}
+
 .streamlit-expanderHeader {
-    background: var(--bg-elevated) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 8px !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.75rem !important;
-    letter-spacing: 0.06em !important;
-    color: var(--text-secondary) !important;
-    transition: border-color 0.18s;
+    background: var(--white) !important;
+    border: 1px solid var(--cream-border) !important;
+    border-radius: 10px !important;
+    font-family: var(--font-sans) !important;
+    font-size: 0.72rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.08em !important;
+    color: var(--text-soft) !important;
+    transition: all 0.18s ease;
+    box-shadow: 0 1px 4px var(--shadow-warm) !important;
 }
 
 .streamlit-expanderHeader:hover {
-    border-color: var(--border-accent) !important;
-    color: var(--accent) !important;
+    border-color: var(--brown-light) !important;
+    color: var(--brown-dark) !important;
 }
 
 .streamlit-expanderContent {
-    background: var(--bg-elevated) !important;
-    border: 1px solid var(--border) !important;
+    background: var(--white) !important;
+    border: 1px solid var(--cream-border) !important;
     border-top: none !important;
-    border-radius: 0 0 8px 8px !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.78rem !important;
+    border-radius: 0 0 10px 10px !important;
+    font-family: var(--font-sans) !important;
+    font-size: 0.8rem !important;
 }
 
-/* Chunk card inside expander */
 .chunk-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
+    background: var(--cream) !important;
+    border: 1px solid var(--cream-border);
+    border-left: 3px solid var(--brown-light);
     border-radius: 0 8px 8px 0;
-    padding: 0.8rem 1rem;
-    margin: 0.6rem 0;
+    padding: 0.85rem 1.1rem;
+    margin: 0.5rem 0;
     font-size: 0.78rem;
-    color: var(--text-secondary);
-    line-height: 1.65;
+    font-weight: 300;
+    color: var(--text-mid);
+    line-height: 1.7;
 }
 
 .chunk-meta {
     display: flex;
-    gap: 1rem;
-    margin-bottom: 0.4rem;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
     flex-wrap: wrap;
 }
 
 .chunk-tag {
-    font-size: 0.6rem;
-    letter-spacing: 0.1em;
+    font-size: 0.58rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    background: var(--accent-dim);
-    color: var(--accent);
-    border: 1px solid var(--border-accent);
+    background: var(--parchment);
+    color: var(--brown);
+    border: 1px solid var(--cream-border);
     border-radius: 4px;
-    padding: 0.15rem 0.5rem;
+    padding: 0.18rem 0.55rem;
 }
 
-/* ── PROGRESS BAR ── */
 .stProgress > div > div > div > div {
-    background: linear-gradient(90deg, var(--accent), #FFDA85) !important;
+    background: linear-gradient(90deg, var(--brown-light), var(--sienna)) !important;
     border-radius: 99px !important;
 }
 
 .stProgress > div > div {
-    background: var(--bg-elevated) !important;
+    background: var(--cream-border) !important;
     border-radius: 99px !important;
+    height: 4px !important;
 }
 
-/* ── DIVIDER ── */
-hr {
-    border-color: var(--border) !important;
-    margin: 1.5rem 0 !important;
+.stCaption, caption {
+    font-family: var(--font-sans) !important;
+    font-size: 0.68rem !important;
+    font-weight: 300 !important;
+    color: var(--text-faint) !important;
 }
 
-/* ── SPINNER ── */
-.stSpinner > div {
-    border-color: var(--accent) transparent transparent transparent !important;
+.stMarkdown p, .stMarkdown li {
+    font-family: var(--font-sans) !important;
+    font-size: 0.85rem !important;
+    font-weight: 300 !important;
+    color: var(--text-mid) !important;
+    line-height: 1.8 !important;
 }
 
-/* ── SCROLLBAR ── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--bg-base); }
-::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-
-/* ── FOOTER ── */
-.rag-footer {
-    text-align: center;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    color: var(--text-muted);
-    letter-spacing: 0.1em;
-    padding: 1.5rem 0 0.5rem;
-}
-
-.rag-footer span {
-    color: var(--accent);
-}
-
-/* ── CONVERSATION HISTORY BUTTONS ── */
 section[data-testid="stSidebar"] div.stButton > button {
     text-align: left !important;
-    background: var(--bg-elevated) !important;
-    border-color: var(--border) !important;
-    color: var(--text-secondary) !important;
     font-size: 0.7rem !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: var(--text-mid) !important;
 }
 
-section[data-testid="stSidebar"] div.stButton > button:hover {
-    background: var(--accent-dim) !important;
-    border-color: var(--border-accent) !important;
-    color: var(--accent) !important;
+hr {
+    border-color: var(--cream-border) !important;
+    margin: 1.25rem 0 !important;
 }
 
-/* ── CAPTION ── */
-.stCaption, caption {
-    font-family: var(--font-mono) !important;
-    font-size: 0.68rem !important;
-    color: var(--text-muted) !important;
+.user-pill {
+    background: rgba(168, 112, 58, 0.08);
+    border: 1px solid rgba(168, 112, 58, 0.2);
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.65rem;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--brown);
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
 }
 
-/* ── MARKDOWN BODY TEXT ── */
-.stMarkdown p, .stMarkdown li {
-    font-family: var(--font-mono) !important;
-    font-size: 0.85rem !important;
-    color: var(--text-secondary) !important;
-    line-height: 1.7 !important;
+.rag-footer {
+    text-align: center;
+    font-family: var(--font-sans);
+    font-size: 0.65rem;
+    font-weight: 300;
+    letter-spacing: 0.15em;
+    color: var(--text-faint);
+    padding: 2rem 0 0.5rem;
 }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--cream); }
+::-webkit-scrollbar-thumb { background: var(--cream-border); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--brown-light); }
 
 </style>
 """, unsafe_allow_html=True)
 
-
-# ── HERO HEADER ──
 st.markdown("""
 <div class="rag-hero">
-    <div class="rag-hero-label">⬡ Semantic Document Intelligence</div>
-    <h1 class="rag-hero-title">PDF <span>RAG</span> Assistant</h1>
-    <p class="rag-hero-sub">Upload documents · Ask questions · Retrieve contextual answers with AI-powered semantic search</p>
+    <div class="rag-hero-eyebrow">Semantic Document Intelligence</div>
+    <h1 class="rag-hero-title"><strong>PDF RAG</strong> Assistant</h1>
+    <p class="rag-hero-sub">Upload documents &nbsp;·&nbsp; Ask questions &nbsp;·&nbsp; Retrieve contextual answers</p>
 </div>
 """, unsafe_allow_html=True)
 
-# Session State Initialization
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -573,22 +577,14 @@ if "messages" not in st.session_state:
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 
-
-# ── SIDEBAR BRAND ──
 st.sidebar.markdown("""
 <div class="sidebar-brand">
-    <div class="sidebar-brand-icon">📘</div>
-    <div>
-        <div class="sidebar-brand-name">RAG Assistant</div>
-        <div class="sidebar-brand-ver">v1.0 · GROQ + FAISS</div>
-    </div>
+    <div class="sidebar-brand-title">✦ RAG Assistant</div>
+    <div class="sidebar-brand-sub">Groq · FAISS · MongoDB</div>
 </div>
 """, unsafe_allow_html=True)
 
-auth_mode = st.sidebar.selectbox(
-    "Authentication",
-    ["Login", "Signup"]
-)
+auth_mode = st.sidebar.selectbox("Authentication", ["Login", "Signup"])
 
 if "auth_email" not in st.session_state:
     st.session_state.auth_email = ""
@@ -596,27 +592,16 @@ if "auth_email" not in st.session_state:
 if "auth_password" not in st.session_state:
     st.session_state.auth_password = ""
 
-email = st.sidebar.text_input(
-    "Email",
-    key="auth_email"
-)
-
-password = st.sidebar.text_input(
-    "Password",
-    type="password",
-    key="auth_password"
-)
+email = st.sidebar.text_input("Email", key="auth_email")
+password = st.sidebar.text_input("Password", type="password", key="auth_password")
 
 if auth_mode == "Signup":
-    if st.sidebar.button("✦ Create Account"):
+    if st.sidebar.button("Create Account"):
         existing_user = users_collection.find_one({"email": email})
         if existing_user:
             st.sidebar.error("User already exists")
         else:
-            hashed_password = bcrypt.hashpw(
-                password.encode("utf-8"),
-                bcrypt.gensalt()
-            )
+            hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
             users_collection.insert_one({"email": email, "password": hashed_password})
             st.sidebar.success("Account created successfully!")
             st.session_state.auth_email = ""
@@ -624,28 +609,28 @@ if auth_mode == "Signup":
             st.rerun()
 
 if auth_mode == "Login":
-    if st.sidebar.button("→ Login"):
+    if st.sidebar.button("Login"):
         user = users_collection.find_one({"email": email})
         if user and bcrypt.checkpw(password.encode("utf-8"), user["password"]):
             st.session_state.logged_in = True
             st.session_state.user_email = email
-            st.sidebar.success("Login successful!")
+            st.sidebar.success("Welcome back.")
             st.rerun()
         else:
             st.sidebar.error("Invalid credentials")
 
-st.sidebar.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+st.sidebar.markdown("<div style='height:0.4rem'></div>", unsafe_allow_html=True)
 
 col_new, col_logout = st.sidebar.columns(2)
 
 with col_new:
-    if st.button("＋ New Chat"):
+    if st.button("New Chat"):
         st.session_state.session_id = str(uuid.uuid4())
         st.session_state.messages = []
         st.rerun()
 
 with col_logout:
-    if st.button("⏻ Logout"):
+    if st.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.user_email = ""
         st.session_state.messages = []
@@ -653,38 +638,22 @@ with col_logout:
         st.rerun()
 
 st.sidebar.markdown("<hr>", unsafe_allow_html=True)
+st.sidebar.markdown("**Settings**")
 
-# Sidebar Settings
-st.sidebar.markdown("**⚙ RAG Settings**")
-
-chunk_size = st.sidebar.slider(
-    "Semantic Chunk Size",
-    min_value=200, max_value=1500, value=500, step=100
-)
-
-overlap = st.sidebar.slider(
-    "Sentence Overlap",
-    min_value=0, max_value=5, value=1, step=1
-)
-
-top_k = st.sidebar.slider(
-    "Top K Retrievals",
-    min_value=1, max_value=10, value=3, step=1
-)
+chunk_size = st.sidebar.slider("Chunk Size", min_value=200, max_value=1500, value=500, step=100)
+overlap = st.sidebar.slider("Sentence Overlap", min_value=0, max_value=5, value=1, step=1)
+top_k = st.sidebar.slider("Top K Retrievals", min_value=1, max_value=10, value=3, step=1)
 
 if st.session_state.logged_in:
     st.sidebar.markdown("<hr>", unsafe_allow_html=True)
-    st.sidebar.markdown("**💬 Conversations**")
+    st.sidebar.markdown("**Conversations**")
 
     conversations = conversation_collection.find(
         {"user_email": st.session_state.user_email}
     ).sort("created_at", -1)
 
     for convo in conversations:
-        if st.sidebar.button(
-            f"↳ {convo['title']}",
-            key=convo["session_id"]
-        ):
+        if st.sidebar.button(f"↳ {convo['title']}", key=convo["session_id"]):
             st.session_state.session_id = convo["session_id"]
             st.session_state.messages = []
             previous_messages = chat_collection.find(
@@ -699,21 +668,17 @@ if st.session_state.logged_in:
                 )
             st.rerun()
 
-
 if not st.session_state.logged_in:
     st.warning("Please login to continue.")
     st.stop()
 
 if st.session_state.logged_in:
     st.sidebar.markdown(f"""
-    <div style="font-family:var(--font-mono);font-size:0.65rem;color:#2DCA8C;
-                border:1px solid rgba(45,202,140,0.2);border-radius:6px;
-                padding:0.4rem 0.7rem;margin-top:0.5rem;background:rgba(45,202,140,0.05);">
-        ● {st.session_state.user_email}
+    <div class="user-pill">
+        ● &nbsp;{st.session_state.user_email}
     </div>
     """, unsafe_allow_html=True)
 
-# Messages
 if "messages" not in st.session_state:
     st.session_state.messages = []
     previous_messages = chat_collection.find(
@@ -727,10 +692,11 @@ if "messages" not in st.session_state:
             {"role": msg["role"], "content": msg["content"]}
         )
 
-
-# ── FILE UPLOAD ──
 st.markdown("""
-<div class="section-label">Document Upload</div>
+<div class="section-rule">
+    <span class="section-rule-label">Document Upload</span>
+    <span class="section-rule-line"></span>
+</div>
 """, unsafe_allow_html=True)
 
 uploaded_files = st.file_uploader(
@@ -740,12 +706,10 @@ uploaded_files = st.file_uploader(
     label_visibility="visible"
 )
 
-# Cached Embedding Model
 @st.cache_resource
 def load_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
 
-# Cached PDF Processing
 @st.cache_data
 def process_pdfs(uploaded_files, chunk_size, overlap):
     all_chunks = []
@@ -788,15 +752,13 @@ def process_pdfs(uploaded_files, chunk_size, overlap):
                     )
     return all_chunks, chunk_sources
 
-
-# Main App Logic
 if uploaded_files:
-    with st.spinner("Processing PDFs and building embeddings..."):
+    with st.spinner("Processing PDFs…"):
         all_chunks, chunk_sources = process_pdfs(uploaded_files, chunk_size, overlap)
         model = load_model()
 
         if len(all_chunks) == 0:
-            st.error("❌ No text could be extracted from the uploaded PDFs.")
+            st.error("No text could be extracted from the uploaded PDFs.")
             st.stop()
 
         embeddings = model.encode(all_chunks)
@@ -805,26 +767,25 @@ if uploaded_files:
         index = faiss.IndexFlatL2(dimension)
         index.add(embeddings)
 
-        st.success(f"✅ {len(uploaded_files)} PDF(s) processed and indexed successfully.")
+        st.success(f"{len(uploaded_files)} PDF(s) indexed successfully.")
 
-        # Metrics strip
         st.markdown(f"""
-        <div class="metric-strip">
-            <div class="metric-cell">
-                <div class="metric-val">{len(uploaded_files)}</div>
-                <div class="metric-key">PDFs Loaded</div>
+        <div class="metric-row">
+            <div class="metric-tile">
+                <div class="metric-num">{len(uploaded_files)}</div>
+                <div class="metric-lbl">PDFs Loaded</div>
             </div>
-            <div class="metric-cell">
-                <div class="metric-val">{len(all_chunks)}</div>
-                <div class="metric-key">Text Chunks</div>
+            <div class="metric-tile">
+                <div class="metric-num">{len(all_chunks)}</div>
+                <div class="metric-lbl">Text Chunks</div>
             </div>
-            <div class="metric-cell">
-                <div class="metric-val">{top_k}</div>
-                <div class="metric-key">Top-K Retrieval</div>
+            <div class="metric-tile">
+                <div class="metric-num">{top_k}</div>
+                <div class="metric-lbl">Top-K</div>
             </div>
-            <div class="metric-cell">
-                <div class="metric-val">{chunk_size}</div>
-                <div class="metric-key">Chunk Size</div>
+            <div class="metric-tile">
+                <div class="metric-num">{chunk_size}</div>
+                <div class="metric-lbl">Chunk Size</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -832,19 +793,19 @@ if uploaded_files:
 else:
     index = None
 
-# ── CHAT SECTION ──
 st.markdown("""
-<div class="section-label">Conversation</div>
+<div class="section-rule">
+    <span class="section-rule-label">Conversation</span>
+    <span class="section-rule-line"></span>
+</div>
 """, unsafe_allow_html=True)
 
-# Display Chat History
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# Chat Input
 query = st.chat_input(
-    "Ask a question about your PDFs…",
+    "Ask a question about your documents…",
     disabled=(index is None)
 )
 
@@ -863,7 +824,6 @@ if query:
     with st.chat_message("user"):
         st.write(query)
 
-    # Query Embedding + Vector Search
     query_embedding = model.encode([query])
     query_embedding = np.array(query_embedding).astype("float32")
     distances, indices = index.search(query_embedding, top_k)
@@ -921,24 +881,21 @@ if query:
                 answer += delta
                 message_placeholder.write(answer)
 
-        # Retrieved Context expander
-        with st.expander("📚 Retrieved Context Chunks"):
+        with st.expander("View Retrieved Context"):
             for i, idx in enumerate(indices[0]):
                 similarity_score = 1 / (1 + distances[0][i])
                 metadata = chunk_sources[idx]
                 st.markdown(f"""
                 <div class="chunk-meta">
                     <span class="chunk-tag">Chunk {i+1}</span>
-                    <span class="chunk-tag">📄 {metadata['file']}</span>
+                    <span class="chunk-tag">{metadata['file']}</span>
                     <span class="chunk-tag">pg {metadata['page']}</span>
-                    <span class="chunk-tag">§{metadata['chunk_id']}</span>
+                    <span class="chunk-tag">§ {metadata['chunk_id']}</span>
                     <span class="chunk-tag">score {similarity_score:.3f}</span>
                 </div>
                 """, unsafe_allow_html=True)
                 st.progress(float(similarity_score))
-                st.markdown(f"""
-                <div class="chunk-card">{all_chunks[idx]}</div>
-                """, unsafe_allow_html=True)
+                st.markdown(f'<div class="chunk-card">{all_chunks[idx]}</div>', unsafe_allow_html=True)
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
     chat_collection.insert_one(
@@ -951,9 +908,8 @@ if query:
         }
     )
 
-# ── FOOTER ──
 st.markdown("""
 <div class="rag-footer">
-    Built with <span>♦</span> using Streamlit · FAISS · MongoDB · Groq LLMs
+    Streamlit &nbsp;·&nbsp; FAISS &nbsp;·&nbsp; MongoDB &nbsp;·&nbsp; Groq LLMs
 </div>
 """, unsafe_allow_html=True)
